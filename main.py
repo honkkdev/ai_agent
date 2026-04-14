@@ -4,7 +4,7 @@ from google import genai
 from dotenv import load_dotenv
 from google.genai import types
 from prompts import *
-
+from call_functions import available_functions
 
 def main():
     load_dotenv()
@@ -19,9 +19,12 @@ def main():
     # Now we can access `args.user_prompt`
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
     response = client.models.generate_content(
-    model=model_name,
+    model="gemini-2.5-flash",
     contents=messages,
-    config=types.GenerateContentConfig(system_instruction=system_prompt),
+    config=types.GenerateContentConfig(
+        tools=[available_functions],
+        system_instruction=system_prompt,
+    ),
     )
     if response.usage_metadata == None:
         raise RuntimeError("API request failed. No usage metadata returned.")
@@ -30,7 +33,11 @@ def main():
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    print(response.text)
+    if response.function_calls:
+        for function_call in response.function_calls:
+            print(f"Calling function: {function_call.name}({function_call.args})")
+    else:
+        print(response.text)
 
 
 if __name__ == "__main__":
